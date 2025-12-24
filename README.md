@@ -1,82 +1,55 @@
-# 🔓 OAuth Account Takeover PoC
+# OAuth Account Takeover (CSRF) Proof-of-Concept
 
-> **Automated Proof-of-Concept for OAuth 2.0 CSRF Vulnerabilities**
+## Description
 
-## 📖 Description
-**OAuth Account Takeover** is a Python automation utility designed to demonstrate and exploit **OAuth 2.0 Cross-Site Request Forgery (CSRF)** vulnerabilities.
+This repository contains a professional Python implementation for demonstrating an **OAuth 2.0 Account Takeover** vulnerability. The exploit targets implementations where the `state` parameter is either missing or insufficiently validated, allowing for a **Cross-Site Request Forgery (CSRF)** attack during the authentication flow.
 
-The vulnerability occurs when an application fails to validate the `state` parameter during the OAuth exchange. This allows an attacker to generate a valid authorization code using their own identity and trick a victim into "finishing" the link to their own profile.
+By automating the initial phases of the OAuth handshake, this tool generates a "poisoned" callback URL. When a victim interacts with this URL while authenticated to the target application, their account profile is silently linked to the attacker's identity provider credentials.
 
-### The Attack Flow:
-1.  **Authenticate**: The script logs into the Identity Provider (IdP) using attacker credentials.
-2.  **Authorize**: It initiates the OAuth flow to the target application.
-3.  **Intercept**: It captures the `callback` URL containing the `?code=` before it is used.
-4.  **Takeover**: The "poisoned" link is delivered to the victim. When clicked, the victim's account is linked to the attacker's IdP account.
+## Technical Mechanics
 
----
+The script automates the following sequence:
 
-## 🛠️ Prerequisites
+1. **Identity Provider (IdP) Authentication**: Establishes an authenticated session with the OAuth provider using attacker-controlled credentials.
+2. **CSRF Token Handling**: Dynamically extracts security tokens (e.g., `csrfmiddlewaretoken`, `authenticity_token`) to bypass platform-level protections.
+3. **Authorization Initiation**: Triggers the OAuth request from the target application to the IdP.
+4. **Callback Interception**: Captures the generated authorization `code` within the redirect URL without consuming it, keeping the token valid for the victim's session.
+
+## Prerequisites
 
 * **Python 3.x**
-* **Requests** (HTTP Library)
-* **BeautifulSoup4** (HTML Parsing)
+* **Requests**: `pipx install requests`
+* **BeautifulSoup4**: `pipx install beautifulsoup4`
 
-### Installation
+## Configuration
+
+Before execution, update the following variables in `exploit.py`:
+
+* `target_base`: The root URL of the vulnerable application.
+* `idp_base`: The root URL of the Identity Provider.
+* `user` / `password`: Valid credentials for an account on the Identity Provider.
+
+## Usage
+
+1. **Generate Payload**: Execute the script to retrieve the malicious callback URL.
 ```bash
-git clone [https://github.com/yourusername/oauth-takeover-poc.git](https://github.com/yourusername/oauth-takeover-poc.git)
-cd oauth-takeover-poc
-pip install requests beautifulsoup4
-```
-
----
-
-## ⚙️ Configuration
-
-Modify the `config` dictionary in `xpl.py` to match your target environment:
-
-| Variable | Description |
-| --- | --- |
-| `TARGET_APP` | The URL of the application to be taken over. |
-| `IDP_URL` | The URL of the OAuth Identity Provider. |
-| `USERNAME` | Attacker account username on the IdP. |
-| `PASSWORD` | Attacker account password on the IdP. |
-
----
-
-## 🚀 Usage
-
-1. **Generate the Payload:**
-Run the script to produce the malicious callback link.
-```bash
-python3 xpl.py
+python3 exploit.py
 
 ```
 
+2. **Delivery**: Deliver the resulting URL (containing the `code` parameter) to the target user via a communication channel of choice.
+3. **Execution**: Once the victim navigates to the link, the account linking is complete. You may then log in to the target application via the OAuth provider to access the victim's account.
 
-2. **The Delivery:**
-Send the resulting URL to the target user (the victim).
-```text
-[+] Payload Generated: 
-[http://target-app.com/oauth/callback?code=AUTH_CODE_HERE&state=EXPLOIT](http://target-app.com/oauth/callback?code=AUTH_CODE_HERE&state=EXPLOIT)
+## Remediation
 
-```
+To prevent this attack, developers must:
 
-
-3. **Profit:**
-Once the victim clicks the link, go to the target application and select **"Login with [Provider]"**. You will be logged into the victim's account.
+* Implement a unique, cryptographically secure `state` parameter for every request.
+* Verify that the `state` returned in the callback matches the `state` originally sent by the application.
+* Ensure that the `redirect_uri` is strictly validated against a pre-registered whitelist.
 
 ---
 
-## 🔍 Technical Details
+### Disclaimer
 
-This script handles the following complexities:
-
-* **CSRF Token Extraction**: Automatically scrapes `csrfmiddlewaretoken` or hidden input tokens required for login.
-* **Session Persistence**: Maintains cookies across the IdP and the Target App.
-* **Redirect Management**: Prevents the `code` from being consumed by the attacker session so it remains valid for the victim.
-
----
-
-## ⚠️ Disclaimer
-
-**Educational Purposes Only.** This repository is intended for security researchers and CTF participants. Unauthorized access to computer systems is illegal. The author is not responsible for any misuse of this information.
+This software is provided for educational and authorized security testing purposes only. Unauthorized use of this tool against systems without prior written consent is strictly prohibited and may result in legal consequences. The author assumes no liability for misuse or damage caused by this program.
